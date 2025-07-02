@@ -142,6 +142,7 @@ exports.getValeSalida = async (req, res) => {
             res.status(500).json({ message: 'Error al obtener el usuario', error: error.message })
         })
     } catch (error) {
+        console.log('Error en getValeSalida:', error);
         res.status(500).json({ message: 'Error del servidor', error: error.message })
     }
 }
@@ -154,9 +155,6 @@ exports.getCountValeSalida = async (req, res) => {
 
     const { type } = req.query
 
-
-    
-  
     switch (type) {
         case "hoy":
             where = {
@@ -226,6 +224,7 @@ exports.getCountValeSalida = async (req, res) => {
         })
     }
     catch (error) {
+        console.log('Error en getCountValeSalida:', error);
         res.status(500).json({ message: 'Error del servidor', error: error.message })
     }
 }
@@ -333,6 +332,7 @@ exports.createValeSalida = async (req, res) => {
         })
     }
     catch (error) {
+        console.log('Error en createValeSalida:', error);
         res.status(500).json({ message: 'Error del servidor', error: error.message })
     }
 }
@@ -401,6 +401,7 @@ exports.updateValeSalida = async (req, res) => {
         }
 
     } catch (error) {
+        console.log('Error en updateValeSalida:', error);
         res.status(500).json({ message: 'Error del servidor', error: error.message })
     }
 }
@@ -647,184 +648,195 @@ exports.cerrarValesAbiertos = async (req, res) => {
     
     try { 
         // Validar todos los vales abiertos y si fueron creados un dia antes, cerrarlos
-    await ValeSalida.findAll({ where: { 
-        [Op.or]: [
-            { statusVale: 1 },
-            { statusVale: 2 },
-        ]
-     }}).then( async valeSalida => {
+        await ValeSalida.findAll({ where: { 
+            [Op.or]: [
+                { statusVale: 1 },
+                { statusVale: 2 },
+            ]
+        }}).then( async valeSalida => {
 
-        valeSalida.map( async item => {
+            valeSalida.map( async item => {
 
-            if(item.fecha < moment().subtract(8, 'h') ){
-                // Si es nuevo, se cancela y todos los detalles se cancelan
-                if( item.statusVale === 1){
-                    item.statusVale = 5
-                    await DetalleSalida.update({ status: 4, comentarios: "Cancelado, se agoto el tiempo de espera, por el sistema" }, { where: { valeSalidaId: item.id } })
-                    await item.save()
+                if(item.fecha < moment().subtract(8, 'h') ){
+                    // Si es nuevo, se cancela y todos los detalles se cancelan
+                    if( item.statusVale === 1){
+                        item.statusVale = 5
+                        await DetalleSalida.update({ status: 4, comentarios: "Cancelado, se agoto el tiempo de espera, por el sistema" }, { where: { valeSalidaId: item.id } })
+                        await item.save()
 
-                // Si es parcialmente abierto 
-                } else if ( item.statusVale === 2){
-                    item.statusVale = 3 // Parcialmente Cerrado
+                    // Si es parcialmente abierto 
+                    } else if ( item.statusVale === 2){
+                        item.statusVale = 3 // Parcialmente Cerrado
 
-                    // si detalle de salida esta en estatus 1, cancelarlo
-                    await DetalleSalida.update({ status: 5, comentarios: "Cancelado, se agoto el tiempo de espera, por el sistema"},{ where: { valeSalidaId: item.id, status: 1 } })
+                        // si detalle de salida esta en estatus 1, cancelarlo
+                        await DetalleSalida.update({ status: 5, comentarios: "Cancelado, se agoto el tiempo de espera, por el sistema"},{ where: { valeSalidaId: item.id, status: 1 } })
 
-                    // Si el detalle de salida esta en estatus 2, cambiarlo a estatus 6
-                    await DetalleSalida.update({ status: 6, comentarios: "Cancelado, se agoto el tiempo de espera, por el sistema"},{ where: { valeSalidaId: item.id, status: 2 } })
-                    await item.save()
+                        // Si el detalle de salida esta en estatus 2, cambiarlo a estatus 6
+                        await DetalleSalida.update({ status: 6, comentarios: "Cancelado, se agoto el tiempo de espera, por el sistema"},{ where: { valeSalidaId: item.id, status: 2 } })
+                        await item.save()
 
+                    }
                 }
-            }
+            })
+        }).catch(error => {
+            res.status(500).json({ message: 'Error al obtener los vales', error: error.message })
         })
-    }).catch(error => {
-        res.status(500).json({ message: 'Error al obtener los vales', error: error.message })
-    })
     }
     catch (error) {
         res.status(500).json({ message: 'Error del servidor', error: error.message })
     }
 }
 
-
-
-exports.getAllValesSalida = async (req, res) => {
-    const { page, limit:size, search, status:statusVale, dateInit, dateEnd, sort, proyectoId} = req.query
-    
-    const proyecto = await Proyectos.findOne({ where: { id: proyectoId } })
-    
-    const etapas = await proyecto.getEtapas()
-
-    // const obras = etapas.map( async item => await item.getObras())
-    let obras = []
-
-    for (let i = 0; i < etapas.length; i++) {
-        const obra = await etapas[i].getObras()
-        obras.push(obra)
-    }
-   
-    const obraId = obras.map( item => item.map( item => item.id)).flat()
-
-
-    const { limit, offset } = getPagination(page, size)
-
-    let userType = null
-
-    const {id} = req.user
-
-    const searchValue = search ? 
-    { 
-        [Op.or]: [
-            { '$vale_salida.id$' : { [Op.like]: '%' + search + '%' } },
-            { '$user.nombre$': { [Op.like ]: `%${search}%` } },
-            { '$user.apellidoPaterno$': { [Op.like]: `%${search}%` } },
-            { '$user.apellidoMaterno$': { [Op.like]: `%${search}%` } },
-            { '$personal.nombre$': { [Op.like]: `%${search}%` } },
-            { '$personal.apellidoPaterno$': { [Op.like]: `%${search}%` } },
-            { '$personal.apellidoMaterno$': { [Op.like]: `%${search}%` } },
-            { '$actividad.nombre$': { [Op.like]: `%${search}%` } },
-        ] 
-        
-    } : null
-
-    const status = statusVale? statusVale.map( item => parseInt(item)) : null
-    const searchStatus = statusVale ?
-        {
-            '$vale_salida.statusVale$': { [Op.or]: status }
-        } : null
-
-    const searchDate = dateInit && dateEnd ? {
-        '$vale_salida.fecha$' : {[Op.between] : [ moment(dateInit).startOf('day').format("YYYY-MM-DD HH:mm:ss"),  moment(dateEnd).endOf('day').format("YYYY-MM-DD HH:mm:ss") ]}
-    } : null
-
-
-    const searchObra = obraId.length > 0 ? {
-        '$vale_salida.obraId$': { [Op.in]: obraId }
-    } : null
-
-
-    await Users.findOne({ where: { id }, include: [{ model: Role , include: Permisos }]})
-    .then( async user => {
-        userType = user.role.permisos.some( item => item.permisos === 'ver vales') ? 
-                { '$vale_salida.statusVale$': { [Op.ne]: 8 } } 
-                : 
-                {'$vale_salida.userId$': user.id}
-    })
-
-            await ValeSalida.findAndCountAll({ 
-                include: [ 
-                    {
-                        model: Users,
-                        as: 'user',
-                        attributes: {
-                            exclude: ['password', 'email', 'telefono', 'tipoUsuario_id', 'puesto', 'google_id', 'status', 'suAdmin', 'createdAt', 'updatedAt']
-                        },
-                        required: false,
-                    }, 
-                    {
-                        model: Obra,
-                        as: 'obra',
-                    },
-                    {
-                        model: Nivel,
-                        as: 'nivel',
-                    },
-                    {
-                        model: Zona,
-                        as: 'zona',
-                    },
-                    {
-                        model: Actividades,
-                        as: 'actividad',
-                    },
-                    {
-                        model: Personal,
-                        as: 'personal',
-                        attributes: {
-                            exclude: ['especialidad', 'createdAt', 'updatedAt', 'deletedAt']
-                        },
-                    },
-                ],             
-                order: [['id', `${sort ? sort : 'DESC'}`]],
-                distinct: true,                
-                where: {[Op.and]: [searchValue, searchStatus, searchDate, userType, searchObra ]}, 
-                limit: limit,
-                offset:offset,
-            })
-            .then(valeSalida => {
-                const response = getPagingData(valeSalida, page, limit)                
-                res.status(200).json({ valeSalida:response })
-            })
-            .catch(error => {
-                res.status(500).json({ message: 'Error al obtener los vale de salida', error: error.message })
-            })
-        
-    
-    .catch(error => {
-        res.status(500).json({ message: 'Error al obtener el usuario', error: error.message })
-    })
-}
+// V2 2025
 
 exports.getDetalleValeSalida = async (req, res) => {
     const { id } = req.query
+
+    try {
+        
+        const detalle = await DetalleSalida.findAll({
+            include: [
+                { model: Insumo },
+                { model: Prestamos, 
+                    include: [
+                        { model: Users, attributes: ['nombre', 'apellidoPaterno'], as: 'residente' }
+                    ]
+                }
+            ],
+            where: { '$detalle_salida.valeSalidaId$': id }
+        })
     
-    await DetalleSalida.findAll({
-        include: [ 
-            { model: Insumo },
-            { model: Prestamos, 
-                include: [
-                    { model: Users, attributes: ['nombre', 'apellidoPaterno'], as: 'residente' }
-                ]
-            }
-        ],
-        where: { '$detalle_salida.valeSalidaId$': id }
-    })
-    .then( detalle => {
         res.status(200).json({ detalle })
-    })
-    .catch( error => {
+
+    } catch (error) {
+        console.error('Error al obtener el detalle del vale de salida:', error);
         res.status(500).json({ message: 'Error al obtener el detalle del vale de salida', error: error.message })
-    })
+    }
 }
 
+exports.getAllValesSalida = async (req, res) => {
+    try {
+        const { page, limit:size, search, status:statusVale, dateInit, dateEnd, sort, proyectoId} = req.query
+
+        const proyecto = await Proyectos.findOne({ where: { id: proyectoId } })
+
+        if( !proyecto ) {
+            return res.status(404).json({ message: 'Proyecto no encontrado' });
+        }
+
+        const etapas = await proyecto.getEtapas()
+        let obras = []
+
+        for (let i = 0; i < etapas.length; i++) {
+            const obra = await etapas[i].getObras()
+            obras.push(obra)
+        }
+    
+        const obraId = obras.map( item => item.map( item => item.id)).flat()
+
+
+        const { limit, offset } = getPagination(page, size)
+
+        let userType = null
+
+        const {id} = req.user
+
+        const searchValue = search ? 
+        { 
+            [Op.or]: [
+                { '$vale_salida.id$' : { [Op.like]: '%' + search + '%' } },
+                { '$user.nombre$': { [Op.like ]: `%${search}%` } },
+                { '$user.apellidoPaterno$': { [Op.like]: `%${search}%` } },
+                { '$user.apellidoMaterno$': { [Op.like]: `%${search}%` } },
+                { '$personal.nombre$': { [Op.like]: `%${search}%` } },
+                { '$personal.apellidoPaterno$': { [Op.like]: `%${search}%` } },
+                { '$personal.apellidoMaterno$': { [Op.like]: `%${search}%` } },
+                { '$actividad.nombre$': { [Op.like]: `%${search}%` } },
+            ] 
+            
+        } : null
+
+        const status = statusVale? statusVale.map( item => parseInt(item)) : null
+        const searchStatus = statusVale ?
+            {
+                '$vale_salida.statusVale$': { [Op.or]: status }
+            } : null
+
+        const searchDate = dateInit && dateEnd ? {
+            '$vale_salida.fecha$' : {[Op.between] : [ moment(dateInit).startOf('day').format("YYYY-MM-DD HH:mm:ss"),  moment(dateEnd).endOf('day').format("YYYY-MM-DD HH:mm:ss") ]}
+        } : null
+
+
+        const searchObra = obraId.length > 0 ? {
+            '$vale_salida.obraId$': { [Op.in]: obraId }
+        } : null
+
+
+        const users = await Users.findOne({ where: { id }, include: [{ model: Role , include: Permisos }]})
+
+        if (!users) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        userType = users.role.permisos.some( item => item.permisos === 'ver vales') ? 
+                { '$vale_salida.statusVale$': { [Op.ne]: 8 } } 
+                : 
+                {'$vale_salida.userId$': users.id}
+
+
+
+            const valesSalida = await ValeSalida.findAndCountAll({ 
+                    include: [ 
+                        {
+                            model: Users,
+                            as: 'user',
+                            attributes: {
+                                exclude: ['password', 'email', 'telefono', 'tipoUsuario_id', 'puesto', 'google_id', 'status', 'suAdmin', 'createdAt', 'updatedAt']
+                            },
+                            required: false,
+                        }, 
+                        {
+                            model: Obra,
+                            as: 'obra',
+                        },
+                        {
+                            model: Nivel,
+                            as: 'nivel',
+                        },
+                        {
+                            model: Zona,
+                            as: 'zona',
+                        },
+                        {
+                            model: Actividades,
+                            as: 'actividad',
+                        },
+                        {
+                            model: Personal,
+                            as: 'personal',
+                            attributes: {
+                                exclude: ['especialidad', 'createdAt', 'updatedAt', 'deletedAt']
+                            },
+                        },
+                    ],             
+                    order: [['id', `${sort ? sort : 'DESC'}`]],
+                    distinct: true,                
+                    where: {[Op.and]: [searchValue, searchStatus, searchDate, userType, searchObra ]}, 
+                    limit: limit,
+                    offset:offset,
+                })
+
+            if (!valesSalida) {
+                return res.status(404).json({ message: 'No se encontraron vales de salida' });
+            }
+
+            const response = getPagingData(valesSalida, page, limit)                
+            res.status(200).json({ valeSalida: response })
+        
+    } catch (error) {
+        console.error('Error en getAllValesSalida:', error);
+        res.status(500).json({ message: 'Error del servidor', error: error.message })
+        
+    }
+}
 
