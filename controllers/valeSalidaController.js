@@ -716,7 +716,7 @@ exports.getDetalleValeSalida = async (req, res) => {
 
 exports.getAllValesSalida = async (req, res) => {
     try {
-        const { page, limit:size, search, status:statusVale, dateInit, dateEnd, sort, proyectoId} = req.query
+        const { page, limit:size, search, status:statusVale, dateInit, dateEnd, sort, proyectoId = 1} = req.query
 
         const proyecto = await Proyectos.findOne({ where: { id: proyectoId } })
 

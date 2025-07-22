@@ -48,6 +48,7 @@ dbConfig.sync()
     const errorinfo = `${new Date(Date.now()).toLocaleString()} - ${err} \n`
     console.log(errorinfo);
     logError(err)
+    process.exit(1); // Exit the process if DB connection fails
 })
 
 
@@ -55,12 +56,14 @@ process.on('uncaughtException', (err) => {
     const errorinfo = `${new Date(Date.now()).toLocaleString()} - ${err} \n`
     console.log(errorinfo);
     logError(err)
+    process.exit(1); // Exit the process after logging the error
 });
 
 process.on('unhandledRejection', (err) => {
     const errorinfo = `${new Date(Date.now()).toLocaleString()} - ${err} \n`
     console.log(errorinfo);
     logError(err)
+    process.exit(1); // Exit the process after logging the error
 });
 
 
