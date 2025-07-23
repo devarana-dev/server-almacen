@@ -22,13 +22,13 @@ exports.getActividades = async (req, res) => {
     )
     try {
         const actividades = await Actividad.findAll({ where }).catch(error => {
-            res.status(500).json({ message: 'Error al obtener las actividades', error: error.message })
+            res.status(500).json({ message: 'Error al obtener las actividades', error })
         })
         if(actividades){
             res.status(200).json({ actividades })
         }
     } catch (error) {
-        res.status(500).json({ message: 'Error del servidor', error: error.message })
+        res.status(500).json({ message: 'Error del servidor', error })
     }
 }
 
@@ -36,13 +36,13 @@ exports.getActividad = async (req, res) => {
     const { id } = req.params
     try {
         const actividad = await Actividad.findOne({ where: { id } }).catch(error => {
-            res.status(500).json({ message: 'Error al obtener la actividad', error: error.message })
+            res.status(500).json({ message: 'Error al obtener la actividad', error })
         })
         if(actividad){
             res.status(200).json({ actividad })
         }
     } catch (error) {
-        res.status(500).json({ message: 'Error del servidor', error: error.message })
+        res.status(500).json({ message: 'Error del servidor', error })
     }
 }
 
@@ -59,14 +59,14 @@ exports.createActividad = async (req, res) => {
             nombre,
             type,
         }).catch(error => {
-            res.status(500).json({ message: 'Error al crear la actividad', error: error.message })
+            res.status(500).json({ message: 'Error al crear la actividad', error })
         })
         if(actividad){
             res.status(200).json({ actividad })
         }
     }
     catch (error) {
-        res.status(500).json({ message: 'Error del servidor', error: error.message })
+        res.status(500).json({ message: 'Error del servidor', error })
     }
 }
 
@@ -83,7 +83,7 @@ exports.updateActividad = async (req, res) => {
 
     try{
         const actividad = await Actividad.findOne({where: {id}}).catch(error => {
-            res.status(500).json({message: 'Error al obtener la actividad', error: error.message})
+            res.status(500).json({message: 'Error al obtener la actividad', error})
         })
         if(actividad){
             actividad.nombre = nombre ?? actividad.nombre
@@ -94,7 +94,7 @@ exports.updateActividad = async (req, res) => {
         }
     }
     catch (error) {
-        res.status(500).json({ message: 'Error del servidor', error: error.message })
+        res.status(500).json({ message: 'Error del servidor', error })
     }
 }
 
@@ -102,7 +102,7 @@ exports.deleteActividad = async (req, res) => {
     const {id} = req.params
     try{
         const actividad = await Actividad.findOne({where: {id}}).catch(error => {
-            res.status(500).json({message: 'Error al obtener la actividad', error: error.message})
+            res.status(500).json({message: 'Error al obtener la actividad', error})
         })
         if(actividad){
             await actividad.update({status: 0})
@@ -110,6 +110,6 @@ exports.deleteActividad = async (req, res) => {
         }
     }
     catch (error) {
-        res.status(500).json({ message: 'Error del servidor', error: error.message })
+        res.status(500).json({ message: 'Error del servidor', error })
     }
 }
