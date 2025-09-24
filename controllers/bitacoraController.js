@@ -837,7 +837,8 @@ const generatePdf = async (response, bitacoras, titulo, descripcion, comentarios
                 footer: {
                     height: '40px',
                 },
-                zoomFactor: '1',                    
+                zoomFactor: '1',   
+                timeout: 120000, // 120 segundos de espera                 
             }
         ).toFile(`./public/pdf/Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`, (err, res) => {
             if (err) return console.log(err);
