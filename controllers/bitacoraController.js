@@ -8,7 +8,6 @@ const GaleriaComentario = require('../models/GaleriaComentario')
 const pdf = require('html-pdf');
 const fs = require('fs');
 const path = require('path');
-const { getPagination, getPagingData } = require('../utils/paginacion')
 const { Op, Sequelize } = require('sequelize')
 const { reporteBitacora } = require('../email/Notificaciones')
 const Etapas = require('../models/Etapas')
@@ -23,6 +22,7 @@ const { uploadDynamicFiles } = require('../utils/dynamicFiles');
 const { sendFiles } = require('../email/FIles');
 const Empresa = require('../models/Empresa');
 tinify.key = process.env.TINY_IMG_API_KEY;
+const puppeteer = require('puppeteer');
 // moment locale mx
 moment.locale('es-mx')
 
@@ -538,324 +538,384 @@ exports.updateBitacoraConfirm = async (req, res) => {
 const generatePdf = async (response, bitacoras, titulo, descripcion, comentarios, imagenes, logotipoProyecto, destinatarios) => {
 
 
-    const logo = fs.readFileSync(path.resolve(__dirname, '../static/img/logo.png'))
-    const logoBase64 = logo.toString('base64')
+        try {
+            const logo = fs.readFileSync(path.resolve(__dirname, '../static/img/logo.png'))
+            const logoBase64 = logo.toString('base64')
 
-    const pdfIcon = fs.readFileSync(path.resolve(__dirname, '../static/img/pdf-icon.png'))
-    const logoPdfBase64 = pdfIcon.toString('base64')
+            const pdfIcon = fs.readFileSync(path.resolve(__dirname, '../static/img/pdf-icon.png'))
+            const logoPdfBase64 = pdfIcon.toString('base64')
 
-    
-    // print first bitacoras
-    const content = `
-    <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta http-equiv="X-UA-Compatible" content="IE=edge">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Document</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        </head>
-
-        <style>
-            @font-face {
-                font-family: 'Mulish';
-                font-style: normal;
-                font-weight: 300;
-                font-display: swap;
-                src: url(https://fonts.gstatic.com/s/mulish/v12/1Ptvg83HX_SGhgqk3wot.woff2) format('woff2');
-                unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-            }
-            @font-face {
-                font-family: 'Mulish';
-                font-style: normal;
-                font-weight: 500;
-                font-display: swap;
-                src: url(https://fonts.gstatic.com/s/mulish/v12/1Ptvg83HX_SGhgqk3wot.woff2) format('woff2');
-                unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-            }
-            @font-face {
-                font-family: 'Mulish';
-                font-style: normal;
-                font-weight: 700;
-                font-display: swap;
-                src: url(https://fonts.gstatic.com/s/mulish/v12/1Ptvg83HX_SGhgqk3wot.woff2) format('woff2');
-                unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-            }
-            @font-face {
-                font-family: 'Playfair Display';
-                font-style: normal;
-                font-weight: 400;
-                font-display: swap;
-                src: url(https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.woff2) format('woff2');
-                unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-            }
             
-            body{
-                font-size: 12px;
-            }
+            // print first bitacoras
+            const content = `
+            <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Document</title>
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                </head>
 
-            h1, h2, h3, h4, h5, h6{
-                font-family: 'Playfair Display', sans-serif;
-                color:#646375;
-                font-weight: 400!important;
-            }
-            p, li, span, a, td{
-                font-family: 'Mulish', sans-serif;
-                color:#646375;
-                font-size: 1em;
-                margin: 0 0 10px;
-            }
-            td{
-                color:#646375;
-            }
-            * {
-                
-                text-transform: none!important;
-            }
-        </style>
-        <body>
-
-            <table style="width: 100%;border-spacing: 0;">
-                <th style="width:20%;text-align:center;border: 1px solid rgba(0, 0, 0, .1);position:relative;">
-                    <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/iconos%2Fdevarana-logo.png" style="z-index:109321390123;position:absolute; width:calc(90% - 10px); top:0 ;left:0;right:0;bottom:0;margin:auto;">
-                </th>
-                <th style="width:60%;border: 1px solid rgba(0, 0, 0, .1);padding-bottom:5px;">
-                    <h1 style="color:#d64767;text-align: center;font-size:1.2em;margin:0>">Reporte ${titulo} </h1>
-                </th>
-                <th style="width:20%;text-align:center;border: 1px solid rgba(0, 0, 0, .1);">
-                    <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${logotipoProyecto}" style="width:calc(90% - 10px); padding-top:3px;margin:0;padding-bottom:0;">
-                </th>
-            </table>
-
-            <p style="font-size: 1em;padding: 25px 0 25px;">
-                ${descripcion}
-            </p>
-
-            <hr style="border: 1px solid rgba(0, 0, 0, .1);padding: 0 25px;">
-
-            ${
-                bitacoras.map( (bitacora, index) => {
-
-                    const { folio, titulo, descripcion, actividad, fecha, tipo_bitacora, autorInt, autorExt, proyecto, etapa, empresa, contratista, participantes, galeria_bitacoras, comentarios_bitacoras, ext_mail_bitacoras } = bitacora
-                    const { nombre:nombreTipoBitacora } = tipo_bitacora
-
-                    return (`
-                    <div style="background-color:#56739B;margin-top:10px;">
-                        <p style="padding: 5px 20px;color:white;font-weight: 700;">Folio: ${folio} | ${ nombreTipoBitacora } </p>
-                    </div>
-
-                    <div style="position:relative;float:left">
-                        <div style="width:50%; float:left;">
-                            <div>
-                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Fecha:</p>
-                                <p style="display:inline-block;">${ moment(fecha).format('LLL') }</p>
-                            </div>
-                            
-                            <div>
-                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Autor:</p>
-                                <p style="display:inline-block;">${ autorInt ? `${autorInt.nombre} ${autorInt.apellidoPaterno} ${autorInt.apellidoMaterno}` : `${autorExt.nombre} ${autorExt.apellidoPaterno} ${autorExt.apellidoMaterno}` }</p>
-                            </div>
-                            <div>
-                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Proyecto:</p>
-                                <p style="display:inline-block;">${proyecto.nombre}</p>
-                            </div>
-                            <div>
-                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Etapa:</p>
-                                <p style="display:inline-block;">${etapa.nombre}</p>
-                            </div>
-                            <div>
-                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Actividad:</p>
-                                <p style="display:inline-block;">${actividad}</p>
-                            </div>
-
-                            ${
-                                contratista ? `
-                                <div>
-                                    <p style="display:inline-block;font-size: 1em;font-weight: bold;">Contratista:</p>
-                                    <p style="display:inline-block;">${contratista.nombre}</p>
-                                </div>
-                                ` : ''
-                            }
-                            ${
-                                empresa ? `
-                                <div>
-                                    <p style="display:inline-block;font-size: 1em;font-weight: bold;">Contratista:</p>
-                                    <p style="display:inline-block;">${empresa.nombreCompleto}</p>
-                                </div>
-                                ` : ''
-                            }
-                            
-                        </div>
-                        <div style="width:50%; float:left;">
-                            <div>
-                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Título:</p>
-                                <p style="display:inline-block;"> ${titulo} </p>
-                            </div>
-                            <div>
-                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Descripción:</p>
-                                <p style="display:inline-block;"> ${ descripcion } </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="clear:both;"></div>
-                    <div>
-                    ${ 
-                        participantes.length > 0 ? `
-                        <div>
-                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Participantes:</p>
-                            ${
-                                participantes.map( participante => {
-                                    return `<p style="width:auto; display:inline-block; margin: 0px 2px;background-color: rgba(227, 227, 227, .5);padding: 2px 10px;">${participante.nombre} ${participante.apellidoPaterno} ${participante.apellidoMaterno}</p>`
-                                }).join('')
-                            }
-                        </div>
-                        ` : ''
+                <style>
+                    @font-face {
+                        font-family: 'Mulish';
+                        font-style: normal;
+                        font-weight: 300;
+                        font-display: swap;
+                        src: url(https://fonts.gstatic.com/s/mulish/v12/1Ptvg83HX_SGhgqk3wot.woff2) format('woff2');
+                        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
                     }
-                    ${ 
-                        ext_mail_bitacoras && ext_mail_bitacoras.length > 0 ? `
-                        <div>
-                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Notificados:</p>
-                            ${
-                                ext_mail_bitacoras.map( notificado => {
-                                    return `<p style="width:auto; display:inline-block; margin: 0px 2px;background-color: rgba(227, 227, 227, .5);padding: 2px 10px;">${notificado.mail}</p>`
-                                }).join('')
-                            }  
-                        </div>
-                        ` : ''
+                    @font-face {
+                        font-family: 'Mulish';
+                        font-style: normal;
+                        font-weight: 500;
+                        font-display: swap;
+                        src: url(https://fonts.gstatic.com/s/mulish/v12/1Ptvg83HX_SGhgqk3wot.woff2) format('woff2');
+                        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+                    }
+                    @font-face {
+                        font-family: 'Mulish';
+                        font-style: normal;
+                        font-weight: 700;
+                        font-display: swap;
+                        src: url(https://fonts.gstatic.com/s/mulish/v12/1Ptvg83HX_SGhgqk3wot.woff2) format('woff2');
+                        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+                    }
+                    @font-face {
+                        font-family: 'Playfair Display';
+                        font-style: normal;
+                        font-weight: 400;
+                        font-display: swap;
+                        src: url(https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.woff2) format('woff2');
+                        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+                    }
                     
+                    body{
+                        font-size: 14px;
                     }
-                    </div>
+
+                    h1, h2, h3, h4, h5, h6{
+                        font-family: 'Playfair Display', sans-serif;
+                        color:#646375;
+                        font-weight: 400!important;
+                    }
+                    p, li, span, a, td{
+                        font-family: 'Mulish', sans-serif;
+                        color:#646375;
+                        font-size: 1em;
+                        margin: 0 0 10px;
+                    }
+                    td{
+                        color:#646375;
+                    }
+                    * {
+                        
+                        text-transform: none!important;
+                    }
+                        .no-break {
+                            page-break-inside: avoid; /* Para PhantomJS y navegadores antiguos */
+                            break-inside: avoid;       /* Estándar moderno, funciona con Puppeteer/Chrome */
+                        }
+                </style>
+                <body>
+
+                    <table style="width: 100%;border-spacing: 0;">
+                        <th style="width:20%;text-align:center;border: 1px solid rgba(0, 0, 0, .1);position:relative;">
+                            <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/iconos%2Fdevarana-logo.png" style="z-index:109321390123;position:absolute; width:calc(90% - 10px); top:0 ;left:0;right:0;bottom:0;margin:auto;">
+                        </th>
+                        <th style="width:60%;border: 1px solid rgba(0, 0, 0, .1);padding-bottom:5px;">
+                            <h1 style="color:#d64767;text-align: center;font-size:1.2em;margin:0>">Reporte ${titulo} </h1>
+                        </th>
+                        <th style="width:20%;text-align:center;border: 1px solid rgba(0, 0, 0, .1);">
+                            <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${logotipoProyecto}" style="width:calc(90% - 10px); padding-top:3px;margin:0;padding-bottom:0;">
+                        </th>
+                    </table>
+
+                    ${descripcion && descripcion.trim() !== '' && ` <p style="font-size: 1em;padding: 25px 0 25px;">
+                        ${descripcion}
+                    </p>`}
+
+                    ${ descripcion && descripcion.trim() !== '' && `<hr style="border: 1px solid rgba(0, 0, 0, .1);padding: 0 25px;">`}
+
+
                     ${
-                        imagenes && galeria_bitacoras ? `
-                        <div style="padding: 10px 0">
-                            <p style="font-size: 1em;font-weight: bold">Evidencia:</p>
-                            ${
-                                galeria_bitacoras.map( evidencia => {
-                                    if(evidencia.type === 'application/pdf'){
-                                        return (`
-                                             <a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;">
-                                                <img src="data:image/png;base64,${logoPdfBase64}" style="width:100px; height: 100px; padding: 10px 10px;" />
-                                            </a>`)
-                                    }else{
-                                        return (
-                                            `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;">
-                                                <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;"/>
-                                            </a>
-                                            `
-                                        )
-                                    }
-                                }).join('')
-                            }
-                        </div>`
+                        bitacoras.map( (bitacora, index) => {
 
-                        : ''
-                    }
-        
-                   ${
-                     comentarios && comentarios_bitacoras.length > 0 ? `
-                     <div>
-                        <p style="width: 100%;font-size: 1em;font-weight: bold">Comentarios ( ${comentarios_bitacoras.length} )</p>
-                        ${
-                            comentarios_bitacoras.map( comentario => {
-                                return (`
-                                    <div style="margin-bottom: 15px;padding-left:15px">
-                                        <div style="width: 7px;height: 7px;background-color: rgba(0, 0, 0, .3)"></div>
-                                        <div style="width: calc( 100% - 30px);display: inline-block;border-left: 1px solid rgba(0, 0, 0, .1);padding-left: 5px;">
-                                            <div style="padding-left: 5px;">
-                                                <p style="display: inline-block;margin: 5px 0 0;font-size: 1em;font-weight: bold;">Fecha:</p>
-                                                <p style="display: inline-block;margin: 5px 0 0;"> ${ moment(comentario.createdAt).format('LLL') } </p>
-                                            </div>
-                                            <div style="padding-left: 5px;">
-                                                <p style="display: inline-block;margin: 5px 0 0;font-size: 1em;font-weight: bold;">Autor:</p>
-                                                <p style="display: inline-block;margin: 5px 0 0;"> ${comentario.user.nombre + ' ' + comentario.user.apellidoPaterno + ' ' + comentario.user.apellidoMaterno} </p>
-                                            </div>
-                                            <div style="padding-left: 5px;">
-                                                <p style="display: inline-block;margin: 5px 0 0;font-size: 1em;font-weight: bold;">Comentario:</p>
-                                                <p style="display: inline-block;margin: 5px 0 0;"> ${comentario.comentario} </p>
-                                            </div>
-                                            ${
-                                                imagenes && comentario.galeria_comentarios && comentario.galeria_comentarios.length > 0 ? `
-                                                <div style="padding: 10px 5px">
-                                                    <div style="padding: 10px 0">
-                                                        <p style="font-size: 1em;font-weight: bold">Evidencia:</p>
-                                                        ${
-                                                            comentario.galeria_comentarios.map( evidencia => ( 
-                                                                evidencia.type === 'application/pdf' ?
-                                                                    `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;">
-                                                                        <img src="data:image/png;base64,${logoPdfBase64}" style="width:100px; height: 100px; padding: 10px 10px;"/>
-                                                                    </a>`
-                                                                :
+                            const { folio, titulo, descripcion, actividad, fecha, tipo_bitacora, autorInt, autorExt, proyecto, etapa, empresa, contratista, participantes, galeria_bitacoras, comentarios_bitacoras, ext_mail_bitacoras } = bitacora
+                            const { nombre:nombreTipoBitacora } = tipo_bitacora
 
-                                                                    `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;">
-                                                                        <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;"/>
-                                                                    </a>
-                                                                    `
-                                                            )).join(' ')
-                                                        }
-                                                    </div>
-                                                </div>
-                                                ` : ''
-                                            }
+                            return (`
+
+                            <div class="no-break" style="margin-top: 25px;">
+                                <div style="background-color:#56739B;margin-top:10px;">
+                                    <p style="padding: 5px 20px;color:white;font-weight: 700;">Folio: ${folio} | ${ nombreTipoBitacora } </p>
+                                </div>
+
+                                <div style="position:relative;float:left; break-inside:avoid">
+                                    <div style="width:50%; float:left;">
+                                        <div>
+                                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Fecha:</p>
+                                            <p style="display:inline-block;">${ moment(fecha).format('LLL') }</p>
                                         </div>
                                         
+                                        <div>
+                                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Autor:</p>
+                                            <p style="display:inline-block;">${ autorInt ? `${autorInt.nombre} ${autorInt.apellidoPaterno} ${autorInt.apellidoMaterno}` : `${autorExt.nombre} ${autorExt.apellidoPaterno} ${autorExt.apellidoMaterno}` }</p>
+                                        </div>
+                                        <div>
+                                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Proyecto:</p>
+                                            <p style="display:inline-block;">${proyecto.nombre}</p>
+                                        </div>
+                                        <div>
+                                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Etapa:</p>
+                                            <p style="display:inline-block;">${etapa.nombre}</p>
+                                        </div>
+                                        <div>
+                                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Actividad:</p>
+                                            <p style="display:inline-block;">${actividad}</p>
+                                        </div>
+
+                                        ${
+                                            contratista ? `
+                                            <div>
+                                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Contratista:</p>
+                                                <p style="display:inline-block;">${contratista.nombre}</p>
+                                            </div>
+                                            ` : ''
+                                        }
+                                        ${
+                                            empresa ? `
+                                            <div>
+                                                <p style="display:inline-block;font-size: 1em;font-weight: bold;">Contratista:</p>
+                                                <p style="display:inline-block;">${empresa.nombreCompleto}</p>
+                                            </div>
+                                            ` : ''
+                                        }
+                                        
                                     </div>
-                            `)
-                            }).join('')
+                                    <div style="width:50%; float:left;">
+                                        <div>
+                                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Título:</p>
+                                            <p style="display:inline-block;"> ${titulo} </p>
+                                        </div>
+                                        <div>
+                                            <p style="display:inline-block;font-size: 1em;font-weight: bold;">Descripción:</p>
+                                            <p style="display:inline-block;"> ${ descripcion } </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="clear:both;"></div>
+                            <div>
+                            ${ 
+                                participantes.length > 0 ? `
+                                <div>
+                                    <p style="display:inline-block;font-size: 1em;font-weight: bold;">Participantes:</p>
+                                    ${
+                                        participantes.map( participante => {
+                                            return `<p style="width:auto; display:inline-block; margin: 0px 2px;background-color: rgba(227, 227, 227, .5);padding: 2px 10px;">${participante.nombre} ${participante.apellidoPaterno} ${participante.apellidoMaterno}</p>`
+                                        }).join('')
+                                    }
+                                </div>
+                                ` : ''
+                            }
+                            ${ 
+                                ext_mail_bitacoras && ext_mail_bitacoras.length > 0 ? `
+                                <div>
+                                    <p style="display:inline-block;font-size: 1em;font-weight: bold;">Notificados:</p>
+                                    ${
+                                        ext_mail_bitacoras.map( notificado => {
+                                            return `<p style="width:auto; display:inline-block; margin: 0px 2px;background-color: rgba(227, 227, 227, .5);padding: 2px 10px;">${notificado.mail}</p>`
+                                        }).join('')
+                                    }  
+                                </div>
+                                ` : ''
+                            
+                            }
+                            </div>
+                            ${
+                                imagenes && galeria_bitacoras.length > 0 ? `
+                                <div style="padding: 10px 0">
+                                    <p style="font-size: 1em;font-weight: bold">Evidencia:</p>
+                                    ${
+                                        galeria_bitacoras.map( evidencia => {
+                                            if(evidencia.type === 'application/pdf'){
+                                                return (`
+                                                    <a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;" target="_blank" rel="noreferrer">
+                                                        <img src="data:image/png;base64,${logoPdfBase64}" style="width:100px; height: 100px; padding: 10px 10px;" />
+                                                    </a>`)
+                                            }else{
+                                                return (
+                                                    `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;" target="_blank" rel="noreferrer">
+                                                        <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;"/>
+                                                    </a>
+                                                    `
+                                                )
+                                            }
+                                        }).join('')
+                                    }
+                                </div>`
 
+                                : ''
+                            }
+                
+                        ${
+                            comentarios && comentarios_bitacoras.length > 0 ? `
+                            <div>
+                                <p style="width: 100%;font-size: 1em;font-weight: bold">Comentarios ( ${comentarios_bitacoras.length} )</p>
+                                ${
+                                    comentarios_bitacoras.map( comentario => {
+                                        return (`
+                                            <div style="margin-bottom: 15px;padding-left:15px">
+                                                <div style="width: 7px;height: 7px;background-color: rgba(0, 0, 0, .3)"></div>
+                                                <div style="width: calc( 100% - 30px);display: inline-block;border-left: 1px solid rgba(0, 0, 0, .1);padding-left: 5px;">
+                                                    <div style="padding-left: 5px;">
+                                                        <p style="display: inline-block;margin: 5px 0 0;font-size: 1em;font-weight: bold;">Fecha:</p>
+                                                        <p style="display: inline-block;margin: 5px 0 0;"> ${ moment(comentario.createdAt).format('LLL') } </p>
+                                                    </div>
+                                                    <div style="padding-left: 5px;">
+                                                        <p style="display: inline-block;margin: 5px 0 0;font-size: 1em;font-weight: bold;">Autor:</p>
+                                                        <p style="display: inline-block;margin: 5px 0 0;"> ${comentario.user.nombre + ' ' + comentario.user.apellidoPaterno + ' ' + comentario.user.apellidoMaterno} </p>
+                                                    </div>
+                                                    <div style="padding-left: 5px;">
+                                                        <p style="display: inline-block;margin: 5px 0 0;font-size: 1em;font-weight: bold;">Comentario:</p>
+                                                        <p style="display: inline-block;margin: 5px 0 0;"> ${comentario.comentario} </p>
+                                                    </div>
+                                                    ${
+                                                        imagenes && comentario.galeria_comentarios && comentario.galeria_comentarios.length > 0 ? `
+                                                        <div style="padding: 10px 5px">
+                                                            <div style="padding: 10px 0">
+                                                                <p style="font-size: 1em;font-weight: bold">Evidencia:</p>
+                                                                ${
+                                                                    comentario.galeria_comentarios.map( evidencia => ( 
+                                                                        evidencia.type === 'application/pdf' ?
+                                                                            `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;">
+                                                                                <img src="data:image/png;base64,${logoPdfBase64}" style="width:100px; height: 100px; padding: 10px 10px;"/>
+                                                                            </a>`
+                                                                        :
+
+                                                                            `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;text-decoration:none;">
+                                                                                <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height: 100px; padding: 10px 10px;"/>
+                                                                            </a>
+                                                                            `
+                                                                    )).join(' ')
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                        ` : ''
+                                                    }
+                                                </div>
+                                                
+                                            </div>
+                                    `)
+                                    }).join('')
+
+                                }
+                            </div>
+                            `
+                            : ''
                         }
-                    </div>
-                     `
-                     : ''
-                   }
-                </div>
-                `)
-                }).join('')
-            }
+                        </div>
+                        `)
+                        }).join('')
+                    }
+                    
+                </body>
+
+                </html>
+            `  
+
+
+            const browser = await puppeteer.launch({
+                headeless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            });
+
+            const page = await browser.newPage();
             
-        </body>
+            await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 1 });
 
-        </html>
-        <div id="pageFooter" style="text-align: center; height:30px;">
-            <div style="display: inline-block;"><span style="margin:0;">Página {{page}} de {{pages}}</span></div>
-            <div style="display: inline-block;float:right;"><img src="data:image/png;base64,${logoBase64}" style="width: 25px; height: 25px;" /></div>
-        </div>
-    `  
-        pdf.create(
-            content,
-            {
+            await page.setContent(content, { waitUntil: 'networkidle2', timeout: 120000 });
+
+            const outputPath = `./public/pdf/Reporte-${moment().format('DD-MM-YYYY-HH-mm')}.pdf`;
+
+            await page.pdf({
+                timeout: 120000,
+                path: outputPath,
                 format: 'A4',
-                phantomPath: require('phantomjs-prebuilt').path,
-                orientation: 'portrait',
-                border: {
-                    right: '0.4in',
-                    left: '0.4in',
+                printBackground: true,
+                margin: {
                     top: '0.41in',
-                    bottom: '0.1in'
+                    right: '0.4in',
+                    bottom: '0.4in',
+                    left: '0.4in'
                 },
-                footer: {
-                    height: '40px',
-                },
-                zoomFactor: '1',   
-                timeout: 120000, // 120 segundos de espera                 
+                displayHeaderFooter: !!true,
+                footerTemplate: `
+                    <div style="font-size:12px; width:100%; padding:5px 25px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; color: #646375;font-family: 'Mulish', sans-serif;">
+                        <div></div>
+                        <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+                        <img src="data:image/png;base64,${logoBase64}" style="width: 25px; height: 25px;" />
+                    </div>
+                `,
+                headerTemplate: '<div></div>', // vacío si no quieres header
+            });
+
+            await browser.close();
+
+            const data = fs.readFileSync(outputPath);
+            response.contentType("application/pdf");
+            response.setHeader('Content-Disposition', `attachment; filename=Reporte-${moment().format('DD-MM-YYYY-HH-mm')}.pdf`);
+            response.send(data);
+
+            if(destinatarios && destinatarios.length > 0){
+                sendFiles(destinatarios, titulo, data)
             }
-        ).toFile(`./public/pdf/Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`, (err, res) => {
-            if (err) return console.log(err);
 
-            fs.readFile(res.filename, (err, data) => {
-                if (err) throw err;
-                response.contentType("application/pdf");
-                response.setHeader('Content-Disposition', `attachment; filename=Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`);
-                response.send(data);
+            fs.unlinkSync(outputPath, (err) => {  if (err) throw err });
+        } catch (error) {
+            
+            console.log(error);
+            response.status(500).json({ message: "Error al generar el PDF", error })
+        }
+    
+        // pdf.create(
+        //     content,
+        //     {
+        //         format: 'A4',
+        //         phantomPath: require('phantomjs-prebuilt').path,
+        //         orientation: 'portrait',
+        //         border: {
+        //             right: '0.4in',
+        //             left: '0.4in',
+        //             top: '0.41in',
+        //             bottom: '0.1in'
+        //         },
+        //         footer: {
+        //             height: '40px',
+        //         },
+        //         zoomFactor: '1',   
+        //         timeout: 120000, // 120 segundos de espera                 
+        //     }
+        // ).toFile(`./public/pdf/Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`, (err, res) => {
+        //     if (err) return console.log(err);
 
-                if(destinatarios && destinatarios.length > 0){
-                    sendFiles(destinatarios, titulo, data)
-                }
+        //     fs.readFile(res.filename, (err, data) => {
+        //         if (err) throw err;
+        //         response.contentType("application/pdf");
+        //         response.setHeader('Content-Disposition', `attachment; filename=Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`);
+        //         response.send(data);
 
-                fs.unlinkSync(res.filename, (err) => {  if (err) throw err });
-            })                
-        })
+        //         if(destinatarios && destinatarios.length > 0){
+        //             sendFiles(destinatarios, titulo, data)
+        //         }
+
+        //         fs.unlinkSync(res.filename, (err) => {  if (err) throw err });
+        //     })                
+        // })
 
 }
 
