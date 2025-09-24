@@ -518,6 +518,7 @@ const generatePdf = async ( data, header, filterNames, res ) => {
     
 
     await pdf.create(content, {
+        timeout: 1200000,
         format: 'A4',
         orientation: 'landscape',
         border: {
