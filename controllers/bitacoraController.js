@@ -23,6 +23,7 @@ const { sendFiles } = require('../email/FIles');
 const Empresa = require('../models/Empresa');
 tinify.key = process.env.TINY_IMG_API_KEY;
 const puppeteer = require('puppeteer');
+const puppeteerCore = require('puppeteer-core');
 // moment locale mx
 moment.locale('es-mx')
 
@@ -829,11 +830,16 @@ const generatePdf = async (response, bitacoras, titulo, descripcion, comentarios
             `  
 
 
-            const browser = await puppeteer.launch({
-                headeless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            });
-
+            if(process.env.CHROMIUM_PATH === undefined) {
+                browser = await puppeteer.launch({
+                });
+            } else {    
+                browser = await puppeteerCore.launch({
+                    executablePath: process.env.CHROMIUM_PATH,
+                    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                    ignoreDefaultArgs: ['--disable-extensions']
+                });
+            } 
             const page = await browser.newPage();
             
             await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 1 });
