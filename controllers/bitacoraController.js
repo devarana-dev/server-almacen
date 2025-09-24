@@ -844,7 +844,7 @@ const generatePdf = async (response, bitacoras, titulo, descripcion, comentarios
             
             await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 1 });
 
-            await page.setContent(content, { waitUntil: 'networkidle2', timeout: 120000 });
+            await page.setContent(content, { waitUntil: 'networkidle0', timeout: 0 });
 
             const outputPath = `./public/pdf/Reporte-${moment().format('DD-MM-YYYY-HH-mm')}.pdf`;
 
