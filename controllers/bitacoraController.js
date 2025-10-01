@@ -24,6 +24,11 @@ const Empresa = require('../models/Empresa');
 tinify.key = process.env.TINY_IMG_API_KEY;
 const puppeteer = require('puppeteer');
 const puppeteerCore = require('puppeteer-core');
+
+
+
+
+
 // moment locale mx
 moment.locale('es-mx')
 
@@ -38,7 +43,7 @@ exports.getBitacoras = async (req, res) => {
                 {"autorId" : Number(userId) },
                 {"$autorInt.id$" : Number(userId) },
                 {"$autorExt.id$" : Number(userId) },
-                {"$participantes.pivot_bitacora_users.userId$" : Number(userId) },
+                // {"$participantes.pivot_bitacora_users.userId$" : Number(userId) },
             ]
         }     
         :
@@ -828,7 +833,7 @@ const generatePdf = async (response, bitacoras, titulo, descripcion, comentarios
 
                 </html>
             `  
-
+            let browser = null
 
             if(process.env.CHROMIUM_PATH === undefined) {
                 browser = await puppeteer.launch({
@@ -849,7 +854,6 @@ const generatePdf = async (response, bitacoras, titulo, descripcion, comentarios
             const outputPath = `./public/pdf/Reporte-${moment().format('DD-MM-YYYY-HH-mm')}.pdf`;
 
             await page.pdf({
-                timeout: 120000,
                 path: outputPath,
                 format: 'A4',
                 printBackground: true,
@@ -888,44 +892,145 @@ const generatePdf = async (response, bitacoras, titulo, descripcion, comentarios
             response.status(500).json({ message: "Error al generar el PDF", error })
         }
     
-        // pdf.create(
-        //     content,
-        //     {
-        //         format: 'A4',
-        //         phantomPath: require('phantomjs-prebuilt').path,
-        //         orientation: 'portrait',
-        //         border: {
-        //             right: '0.4in',
-        //             left: '0.4in',
-        //             top: '0.41in',
-        //             bottom: '0.1in'
-        //         },
-        //         footer: {
-        //             height: '40px',
-        //         },
-        //         zoomFactor: '1',   
-        //         timeout: 120000, // 120 segundos de espera                 
-        //     }
-        // ).toFile(`./public/pdf/Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`, (err, res) => {
-        //     if (err) return console.log(err);
-
-        //     fs.readFile(res.filename, (err, data) => {
-        //         if (err) throw err;
-        //         response.contentType("application/pdf");
-        //         response.setHeader('Content-Disposition', `attachment; filename=Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`);
-        //         response.send(data);
-
-        //         if(destinatarios && destinatarios.length > 0){
-        //             sendFiles(destinatarios, titulo, data)
-        //         }
-
-        //         fs.unlinkSync(res.filename, (err) => {  if (err) throw err });
-        //     })                
-        // })
-
 }
 
 
 
 
+// const generateChunkPdf = async (content, filePath) => {
+    
+//   const browser = await puppeteer.launch({
+//     headless: true,
+//     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+//   });
+
+//   try {
+//     const page = await browser.newPage();
+
+//     await page.setContent(content, {
+//       waitUntil: "networkidle0",
+//       timeout: 0, // no cortar por timeout
+//     });
+
+//     await page.pdf({
+//       path: filePath,
+//       format: "A4",
+//       landscape: true,
+//       printBackground: true,
+//       margin: {
+//         top: "1in",
+//         right: "0.3in",
+//         bottom: "0.5in",
+//         left: "0.3in",
+//       },
+//     });
+//   } finally {
+//     await browser.close();
+//   }
+// }
         
+
+// const generatePdf = async (res, bitacoras, titulo, descripcion, comentarios, imagenes, logotipoProyecto, destinatario) => {
+
+// const PDFMerger = (await import('pdf-merger-js')).default;
+//   const chunkSize = 50; // registros por bloque
+//   const merger = new PDFMerger();
+//   const tempFiles = [];
+
+//   for (let i = 0; i < bitacoras.length; i += chunkSize) {
+//     const chunk = bitacoras.slice(i, i + chunkSize);
+
+//     // aquí usas tu propia función para renderizar el HTML del bloque
+//     const htmlContent = renderBitacoraHTML(chunk, comentarios, imagenes, logotipoProyecto);
+
+//     const tempPath = `./tmp/chunk-${i}.pdf`;
+//     tempFiles.push(tempPath);
+
+//     await generateChunkPdf(htmlContent, tempPath);
+//     await merger.add(tempPath);
+//   }
+
+//   // PDF final
+//   const finalPath = `./public/pdf/Reporte-${moment().format("DD-MM-YYYY-hh-mm")}.pdf`;
+//   await merger.save(finalPath);
+
+//   // enviar al cliente
+//   const data = fs.readFileSync(finalPath);
+//   res.contentType("application/pdf");
+//   res.setHeader("Content-Disposition", `attachment; filename=${path.basename(finalPath)}`);
+//   res.send(data);
+
+//   // limpiar archivos temporales
+//   tempFiles.forEach((file) => fs.unlinkSync(file));
+//   fs.unlinkSync(finalPath);
+// }
+
+// const renderBitacoraHTML = (bitacoras, comentarios, imagenes, logoPdfBase64) => {
+//     return `
+//     <div style="font-family: 'Mulish', sans-serif; color: #646375; font-size: 14px;">
+//         ${bitacoras.map(bitacora => {
+//             const { folio, titulo, descripcion, actividad, fecha, tipo_bitacora, autorInt, autorExt, proyecto, etapa, empresa, contratista, participantes, galeria_bitacoras, comentarios_bitacoras, ext_mail_bitacoras } = bitacora;
+//             const nombreTipoBitacora = tipo_bitacora.nombre;
+
+//             return `
+//             <div class="no-break" style="page-break-inside: avoid; margin-top: 25px;">
+//                 <div style="background-color:#56739B; padding:5px 20px; color:white; font-weight:700;">Folio: ${folio} | ${nombreTipoBitacora}</div>
+
+//                 <div style="display:flex; flex-wrap:wrap; margin-top:10px;">
+//                     <div style="width:50%; padding-right:10px;">
+//                         <p><strong>Fecha:</strong> ${moment(fecha).format('LLL')}</p>
+//                         <p><strong>Autor:</strong> ${autorInt ? `${autorInt.nombre} ${autorInt.apellidoPaterno} ${autorInt.apellidoMaterno}` : `${autorExt.nombre} ${autorExt.apellidoPaterno} ${autorExt.apellidoMaterno}`}</p>
+//                         <p><strong>Proyecto:</strong> ${proyecto.nombre}</p>
+//                         <p><strong>Etapa:</strong> ${etapa.nombre}</p>
+//                         <p><strong>Actividad:</strong> ${actividad}</p>
+//                         ${contratista ? `<p><strong>Contratista:</strong> ${contratista.nombre}</p>` : ''}
+//                         ${empresa ? `<p><strong>Empresa:</strong> ${empresa.nombreCompleto}</p>` : ''}
+//                     </div>
+//                     <div style="width:50%; padding-left:10px;">
+//                         <p><strong>Título:</strong> ${titulo}</p>
+//                         <p><strong>Descripción:</strong> ${descripcion}</p>
+//                     </div>
+//                 </div>
+
+//                 ${participantes.length > 0 ? `<p><strong>Participantes:</strong> ${participantes.map(p => p.nombre + ' ' + p.apellidoPaterno + ' ' + p.apellidoMaterno).join(', ')}</p>` : ''}
+//                 ${ext_mail_bitacoras && ext_mail_bitacoras.length > 0 ? `<p><strong>Notificados:</strong> ${ext_mail_bitacoras.map(n => n.mail).join(', ')}</p>` : ''}
+
+//                 ${imagenes && galeria_bitacoras.length > 0 ? `
+//                     <div style="margin-top:10px;">
+//                         <strong>Evidencia:</strong>
+//                         ${galeria_bitacoras.map(evidencia => evidencia.type === 'application/pdf'
+//                             ? `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" target="_blank" rel="noreferrer">
+//                                 <img src="data:image/png;base64,${logoPdfBase64}" style="width:100px; height:100px; margin:5px;" />
+//                                </a>`
+//                             : `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" target="_blank" rel="noreferrer">
+//                                 <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${evidencia.url}" style="width:100px; height:100px; margin:5px;" />
+//                                </a>`).join('')}
+//                     </div>` : ''}
+
+//                 ${comentarios && comentarios_bitacoras.length > 0 ? `
+//                     <div style="margin-top:10px;">
+//                         <strong>Comentarios (${comentarios_bitacoras.length}):</strong>
+//                         ${comentarios_bitacoras.map(comentario => `
+//                             <div style="margin-bottom:10px; padding-left:10px; border-left:2px solid #ccc;">
+//                                 <p><strong>Fecha:</strong> ${moment(comentario.createdAt).format('LLL')}</p>
+//                                 <p><strong>Autor:</strong> ${comentario.user.nombre} ${comentario.user.apellidoPaterno} ${comentario.user.apellidoMaterno}</p>
+//                                 <p><strong>Comentario:</strong> ${comentario.comentario}</p>
+//                                 ${imagenes && comentario.galeria_comentarios && comentario.galeria_comentarios.length > 0 ? `
+//                                     <div>
+//                                         ${comentario.galeria_comentarios.map(e => e.type === 'application/pdf'
+//                                             ? `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${e.url}" target="_blank" rel="noreferrer">
+//                                                 <img src="data:image/png;base64,${logoPdfBase64}" style="width:100px; height:100px; margin:5px;" />
+//                                                </a>`
+//                                             : `<a href="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${e.url}" target="_blank" rel="noreferrer">
+//                                                 <img src="https://devarana-storage.sfo3.cdn.digitaloceanspaces.com/${e.url}" style="width:100px; height:100px; margin:5px;" />
+//                                                </a>`).join('')}
+//                                     </div>` : ''}
+//                             </div>`).join('')}
+//                     </div>` : ''}
+//             </div>
+//             `;
+//         }).join('')}
+//     </div>
+//     `;
+// };
+

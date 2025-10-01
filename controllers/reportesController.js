@@ -10,6 +10,9 @@ const Users = require('../models/Users');
 const { Role } = require('../models');
 const Permisos = require('../models/Permisos');
 
+const puppeteer = require('puppeteer');
+const puppeteerCore = require('puppeteer-core');
+
 // path
 
 
@@ -515,9 +518,12 @@ const generatePdf = async ( data, header, filterNames, res ) => {
             </html>
     `;
 
+
+    // const logo = fs.readFileSync(path.resolve('../static/img/logo.png'), { encoding: 'base64' });
+
     
 
-    await pdf.create(content, {
+    pdf.create(content, {
         timeout: 1200000,
         format: 'A4',
         orientation: 'landscape',
@@ -591,5 +597,100 @@ const generatePdf = async ( data, header, filterNames, res ) => {
             })
         }
     })
+
+    // let browser;
+    // if(process.env.CHROMIUM_PATH === undefined) {
+    //     browser = await puppeteer.launch({
+    //     });
+    // } else {    
+    //     browser = await puppeteerCore.launch({
+    //         executablePath: process.env.CHROMIUM_PATH,
+    //         args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    //         ignoreDefaultArgs: ['--disable-extensions']
+    //     });
+    // } 
+
+    // try {
+    //     const page = await browser.newPage();
+        
+    //     await page.setViewport({ width: 1440, height: 980, deviceScaleFactor: 1 });
+
+    //     await page.setContent(content, { waitUntil: 'networkidle0', timeout: 0 });
+
+    //     const pdfPath = path.resolve(`./public/pdf/Reporte-${moment().format('DD-MM-YYYY-hh-mm')}.pdf`);
+
+    //     await page.pdf({
+    //         path: pdfPath,
+    //         format: 'A4',
+    //         landscape: true,
+    //         printBackground: true,
+    //         margin: {
+    //             top: '0.1in',
+    //             right: '0.2in',
+    //             bottom: '0.1in',
+    //             left: '0.2in'
+    //         },
+    //         displayHeaderFooter: !!true,
+    //         headerTemplate: `
+    //             <div style="width: 100%; margin-top:20px; padding:0 20px; height: 120px;">
+    //                 <table style="width: 100%; font-size: 8px; id="pageHeader">
+    //                         <tr>
+    //                         <td style="width:10%">
+    //                             <img src="${ logo }"
+    //                             style="width: 50px; height: 50px; padding:0 25%">
+    //                             </td>
+    //                             <td style="width: 50%; text-align: right;">
+    //                             <h1 style="text-align:center; color:#646375;">${titulo || ''}</h1>
+    //                             <h2 style="text-align:center; color:#646375;"> Vales de Salida de Almacén </h2>
+    //                         </td>
+    //                         <td style="width:15%;padding:5px;">
+    //                             <p style="font-weight:bold;color:#646375;"> Centro de Costo: <span style="font-weight:normal;"> ${centroCosto || '-'} </span> </p>
+    //                             <p style="font-weight:bold;color:#646375;"> Fecha de Inicio: <span style="font-weight:normal;"> ${fechaInicial || '-'} </span> </p>
+    //                             <p style="font-weight:bold;color:#646375;"> Fecha Final: <span style="font-weight:normal;"> ${fechaFinal || '-'} </span> </p>
+    //                             <p style="font-weight:bold;color:#646375;"> Busqueda: <span style="font-weight:normal;"> ${busqueda || '-'} </span> </p>
+    //                         </td>
+    //                         <td style="width:15%;padding:5px;">
+    //                             <p style="font-weight:bold;color:#646375;"> Actividad: <span style="font-weight:normal;"> ${actividad || '-'} </span> </p>
+    //                             <p style="font-weight:bold;color:#646375;"> Lider de cuadrilla: <span style="font-weight:normal;"> ${personal || '-'} </span> </p>
+    //                             <p style="font-weight:bold;color:#646375;"> Usuario: <span style="font-weight:normal;"> ${usuario || '-'} </span> </p>
+    //                             <p style="font-weight:bold;color:#646375;"> Estatus: <span style="font-weight:normal;"> ${status || '-'} </span> </p>
+    //                         </td>
+    //                     </tr>
+    //                 </table>
+    //                 <table style="width: 100%;"> 
+    //                     <thead>
+    //                         ${ header.map(heading => `<th style="width:${heading.width}px;padding:10px 0;">${heading.name}</th>`).join('') }
+    //                     </thead>
+    //                 </table>
+    //             </div>
+    //         `,
+    //         footerTemplate: `
+    //             <div style="width: 100%; font-size:8px; padding:0 20px;">
+    //                 <span style="color: #444;font-size:8px;float:right;">Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+    //             </div>
+    //         `
+    //     });
+
+    //     await browser.close();
+
+    //     // res.contentType('application/pdf');
+    //     // res.send(pdfBuffer);
+
+
+    //     const data = fs.readFileSync(pdfPath);
+    //     res.contentType("application/pdf");
+    //     res.setHeader('Content-Disposition', `attachment; filename=Reporte-${moment().format('DD-MM-YYYY-HH-mm')}.pdf`);
+    //     res.send(data);
+
+    //     fs.unlinkSync(pdfPath);
+    // } catch (error) {
+    //     console.log(error);
+    //     await browser.close();
+    //     res.status(500).json({ message: 'Error al generar el pdf', error: error.message })
+    // } finally {
+    //     if (browser) {
+    //         await browser.close();
+    //     }
+    // }
 }
 

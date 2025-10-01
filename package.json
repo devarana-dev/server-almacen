@@ -41,6 +41,7 @@
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.0",
+    "pdf-merger-js": "^5.1.2",
     "puppeteer": "^24.22.3",
     "puppeteer-core": "^24.22.3",
     "sequelize": "^6.21.0",
