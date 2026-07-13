@@ -250,7 +250,8 @@ exports.getBitacora = async (req, res) => {
 
 exports.createBitacora = async (req, res) => {
 
-    const form = new formidable.IncomingForm({ multiples: true })
+
+    const form = new formidable.IncomingForm({ multiples: true, maxFileSize: 350 * 1024 * 1024, maxTotalFileSize: 350 * 1024 * 1024 })
     // form.uploadDir = './static/bitacoras'
     form.keepExtensions = true
    
@@ -296,7 +297,7 @@ exports.createBitacora = async (req, res) => {
                 })
 
                 await bitacora.setParticipantes(participantes).catch( (error) => {
-                    console.log(error);
+                    console.log(' Error al vincular a los participantes: ', error);
                     res.status(500).json({ message: "Error al vincular a los participantes", error })
                 })
                     
@@ -354,7 +355,7 @@ exports.createBitacora = async (req, res) => {
                         }).then( async (galeria) => {
                             await galeria.setBitacoras(bitacora.id)
                         }).catch( (error) => {
-                            console.log(error);
+                            console.log(' Error al subir los archivos: ', error);
                             res.status(500).json({ message: "Error syncronizar bitacora", error })
                         })
                     })     
@@ -363,14 +364,14 @@ exports.createBitacora = async (req, res) => {
                     res.status(200).json({ message: "Bitacora creada correctamente", bitacora })   
 
                 }).catch( (error) => {
-                    console.log(error);
+                    console.log(' Error al subir los archivos: ', error);
                     res.status(500).json({ message: "Hubo un problema al subir los archivos, pero la bitácora se ha generado correctamente, Contacta a soporte", error })
                 })
 
                 
             })    
         } catch (error) {  
-            console.log(error);              
+            console.log(' Error al crear la bitacora: ', error);
             res.status(500).json({ message: "Error al crear la bitacora", error })
             // 
         }   
