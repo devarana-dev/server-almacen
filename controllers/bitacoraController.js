@@ -267,19 +267,10 @@ exports.createBitacora = async (req, res) => {
 
         //  obtener todos los participantesId del objeto fields
         const participantesId = Object.keys(fields).filter( (key) => key.includes('participantesId') )
-        const participantes = participantesId.map( (key) => Number(fields[key]) )
+        const participantes = participantesId.map(key => Number(fields[key])).filter(id => Number.isFinite(id) && id > 0);
 
         const correos = Object.keys(fields).filter( (key) => key.includes('correos') )
         const correosParticipantes = correos.map( (key) => fields[key] )
-
-        console.log('FIELDS:', fields);
-        console.log('tipoBitacoraId:', fields.tipoBitacoraId);
-        console.log('proyectoId:', fields.proyectoId);
-        console.log('externoId:', fields.externoId);
-        console.log('participantes:', participantes);
-
-
-
 
         const galeria = Object.values(files)
         try {
@@ -287,45 +278,51 @@ exports.createBitacora = async (req, res) => {
             console.log('1 tipoBitacoraId:', fields.tipoBitacoraId);
             const tipoBitacora = await TipoBitacora.findOne({ where: { id: fields.tipoBitacoraId } })
 
+            if (!tipoBitacora) {
+                return res.status(400).json({
+                    message: 'Tipo de bitácora no encontrado'
+                });
+            }
+
             console.log('2 proyectoId:', fields.proyectoId);
-            const { clave, nombre: nombreProyecto } = await Proyectos.findOne({ where: { id: fields.proyectoId } })
+            const proyecto = await Proyectos.findOne({ where: { id: fields.proyectoId } })
+
+
+            if (!proyecto) {
+                return res.status(400).json({
+                    message: 'Proyecto no encontrado'
+                });
+            }
+
+            const { clave, nombre: nombreProyecto } = proyecto;
 
             const externoId = fields.externoId || null;
 
-            await Bitacora.create({
+            const bitacora = await Bitacora.create({
                 titulo: fields.titulo,
                 descripcion: fields.descripcion,
                 proyectoId: fields.proyectoId,
                 etapaId: fields.etapaId,                
-                externoId: externoId,
+                externoId,
                 tipoBitacoraId: fields.tipoBitacoraId,
                 autorId: req.user.id,
                 actividad: fields.actividad,
                 esInterno: fields.esInterno,
                 empresaId: fields.empresaId,
                 fecha: moment(new Date(fields.fecha)).format('YYYY-MM-DD HH:mm:ss'),
+            })
 
-            }).then( async (bitacora) => {
+            await bitacora.update({ folio: `${clave}-${bitacora.id}`})
 
-                bitacora.update({
-                    folio: `${clave}-${bitacora.id}`
-                })
+            console.log('3 participantes:', participantes);
 
-                console.log('3 participantes:', participantes);
-                await bitacora.setParticipantes(participantes).catch( (error) => {
-                    console.log(' Error al vincular a los participantes: ', error);
-                    res.status(500).json({ message: "Error al vincular a los participantes", error })
-                })
+            await bitacora.setParticipantes(participantes)
 
-                console.log('4 externoId:', bitacora.externoId);
+            console.log('4 externoId:', bitacora.externoId);
 
-                let users = [];
+            let users = [];
                     
-                if (
-                    participantes.length > 0 ||
-                    correosParticipantes.length > 0 ||
-                    bitacora.externoId
-                ) {
+                if ( participantes.length > 0 || correosParticipantes.length > 0 || bitacora.externoId ) {
 
                     const userIds = [ ...participantes, bitacora.externoId ].filter( id => id !== null && id !== undefined );                   
 
@@ -344,13 +341,14 @@ exports.createBitacora = async (req, res) => {
                     }
                     
                     if(correosParticipantes.length > 0){
-                        // agregarlos a la tabla ext_mailbitacoras con el modelo MailBitacora
-                        correosParticipantes.forEach( async (mail) => {
-                            await MailBitacora.create({
-                                mail,
-                                bitacoraId: bitacora.id
-                            })
-                        })
+                        await Promise.all(
+                            correosParticipantes.map(mail =>
+                                MailBitacora.create({
+                                    mail,
+                                    bitacoraId: bitacora.id
+                                })
+                            )
+                        );
                     }
 
 
@@ -365,35 +363,42 @@ exports.createBitacora = async (req, res) => {
                    
 
                     await reporteBitacora(reporte)
+                
+
                 }
 
-                await uploadDynamicFiles(galeria, 'bitacoras').then( async (result) => {
-                    await result.forEach( async (item) => {
-                        await GaleriaBitacora.create({
-                            url: item.url,
-                            type: item.type
-                        }).then( async (galeria) => {
-                            await galeria.setBitacoras(bitacora.id)
-                        }).catch( (error) => {
-                            console.log(' Error al subir los archivos: ', error);
-                            res.status(500).json({ message: "Error syncronizar bitacora", error })
+                let result = [];
+
+                try {
+                    result = await uploadDynamicFiles(galeria, 'bitacoras');
+
+                    await Promise.all(
+                        result.map(async item => {
+                            const archivo = await GaleriaBitacora.create({
+                                url: item.url,
+                                type: item.type
+                            });
+
+                            await archivo.setBitacoras(bitacora.id);
                         })
-                    })     
-                   
-                    io.emit('nueva-bitacora', bitacora )                    
-                    res.status(200).json({ message: "Bitacora creada correctamente", bitacora })   
+                    );
 
-                }).catch( (error) => {
-                    console.log(' Error al subir los archivos: ', error);
-                    res.status(500).json({ message: "Hubo un problema al subir los archivos, pero la bitácora se ha generado correctamente, Contacta a soporte", error })
-                })
+                } catch (error) {
+                    console.log('Error al subir archivos:', error);
 
+                    return res.status(500).json({
+                        message: "La bitácora fue creada, pero hubo un problema al subir los archivos",
+                        bitacora,
+                        error
+                    });
+                }
                 
-            })    
+                io.emit('nueva-bitacora', bitacora )                    
+                return res.status(200).json({ message: "Bitacora creada correctamente", bitacora })   
+
         } catch (error) {  
             console.log(' Error al crear la bitacora: ', error);
-            res.status(500).json({ message: "Error al crear la bitacora", error })
-            // 
+            return res.status(500).json({ message: "Error al crear la bitacora", error })
         }   
     })
 }
@@ -555,9 +560,6 @@ exports.updateBitacoraConfirm = async (req, res) => {
         res.status(500).json({ message: "Error al actualizar la bitacora", error })
     }
 }
-
-
-
 
 // Funciones
 
