@@ -275,8 +275,10 @@ exports.createBitacora = async (req, res) => {
         const galeria = Object.values(files)
         try {
 
-            console.log('1 tipoBitacoraId:', fields.tipoBitacoraId);
-            const tipoBitacora = await TipoBitacora.findOne({ where: { id: fields.tipoBitacoraId } })
+            const tipoBitacoraId = Array.isArray(fields.tipoBitacoraId) ? fields.tipoBitacoraId[0] : fields.tipoBitacoraId ?? 1;
+            
+            console.log('1 tipoBitacoraId:', tipoBitacoraId);
+            const tipoBitacora = await TipoBitacora.findOne({ where: { id: tipoBitacoraId } })
 
             if (!tipoBitacora) {
                 return res.status(400).json({
@@ -304,7 +306,7 @@ exports.createBitacora = async (req, res) => {
                 proyectoId: fields.proyectoId,
                 etapaId: fields.etapaId,                
                 externoId,
-                tipoBitacoraId: fields.tipoBitacoraId,
+                tipoBitacoraId,
                 autorId: req.user.id,
                 actividad: fields.actividad,
                 esInterno: fields.esInterno,
