@@ -258,6 +258,13 @@ exports.createBitacora = async (req, res) => {
     form.parse(req, async (err, fields, files) => {
 
 
+        if (err) {
+            return res.status(500).json({
+                message: "Error al subir la bitacora",
+                err
+            });
+        }
+
         //  obtener todos los participantesId del objeto fields
         const participantesId = Object.keys(fields).filter( (key) => key.includes('participantesId') )
         const participantes = participantesId.map( (key) => Number(fields[key]) )
@@ -265,26 +272,34 @@ exports.createBitacora = async (req, res) => {
         const correos = Object.keys(fields).filter( (key) => key.includes('correos') )
         const correosParticipantes = correos.map( (key) => fields[key] )
 
+        console.log('FIELDS:', fields);
+        console.log('tipoBitacoraId:', fields.tipoBitacoraId);
+        console.log('proyectoId:', fields.proyectoId);
+        console.log('externoId:', fields.externoId);
+        console.log('participantes:', participantes);
 
 
-        if (err) return res.status(500).json({ message: "Error al subir la bitacora", err });
+
 
         const galeria = Object.values(files)
         try {
 
+            console.log('1 tipoBitacoraId:', fields.tipoBitacoraId);
             const tipoBitacora = await TipoBitacora.findOne({ where: { id: fields.tipoBitacoraId } })
 
+            console.log('2 proyectoId:', fields.proyectoId);
             const { clave, nombre: nombreProyecto } = await Proyectos.findOne({ where: { id: fields.proyectoId } })
+
+            const externoId = fields.externoId || null;
 
             await Bitacora.create({
                 titulo: fields.titulo,
                 descripcion: fields.descripcion,
                 proyectoId: fields.proyectoId,
                 etapaId: fields.etapaId,                
-                externoId: fields.externoId,
+                externoId: externoId,
                 tipoBitacoraId: fields.tipoBitacoraId,
                 autorId: req.user.id,
-                externoId: fields.externoId,
                 actividad: fields.actividad,
                 esInterno: fields.esInterno,
                 empresaId: fields.empresaId,
@@ -296,31 +311,36 @@ exports.createBitacora = async (req, res) => {
                     folio: `${clave}-${bitacora.id}`
                 })
 
+                console.log('3 participantes:', participantes);
                 await bitacora.setParticipantes(participantes).catch( (error) => {
                     console.log(' Error al vincular a los participantes: ', error);
                     res.status(500).json({ message: "Error al vincular a los participantes", error })
                 })
+
+                console.log('4 externoId:', bitacora.externoId);
+
+                let users = [];
                     
-                if( participantes.length > 0  || correosParticipantes.length > 0){
+                if (
+                    participantes.length > 0 ||
+                    correosParticipantes.length > 0 ||
+                    bitacora.externoId
+                ) {
 
-                    let where = { id: participantes }
-                    let users = []
+                    const userIds = [ ...participantes, bitacora.externoId ].filter( id => id !== null && id !== undefined );                   
 
-                    if( participantes.length > 0  ){
-                        if( bitacora.externoId ){
-                            where = {
-                                [Op.or]: [
-                                    { id: participantes },
-                                    { id: bitacora.externoId }
-                                ]
-                            }
-                        }
-    
+                    console.log('5 userIds:', userIds);
+
+                    if (userIds.length > 0) {
                         const usuariosParticipantes = await User.findAll({
-                            where,
+                            where: {
+                                id: {
+                                    [Op.in]: userIds
+                                }
+                            }
                         });
-    
-                        users = usuariosParticipantes.map( (user) => user.dataValues )
+
+                        users = usuariosParticipantes.map(user => user.dataValues);
                     }
                     
                     if(correosParticipantes.length > 0){
