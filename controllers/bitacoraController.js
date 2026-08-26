@@ -270,7 +270,7 @@ exports.createBitacora = async (req, res) => {
         const participantes = participantesId.map(key => Number(fields[key])).filter(id => Number.isFinite(id) && id > 0);
 
         const correos = Object.keys(fields).filter( (key) => key.includes('correos') )
-        const correosParticipantes = correos.map( (key) => fields[key] )
+        const correosParticipantes = correos.map( (key) => fields[key] ).filter(Boolean)
 
         const galeria = Object.values(files)
         try {
@@ -354,23 +354,26 @@ exports.createBitacora = async (req, res) => {
 
                     const reporte = {
                         autor: req.user, 
-                        tipoBitacora: tipoBitacora.dataValues.nombre, 
+                        tipoBitacora: tipoBitacora.nombre, 
                         involucrados: users, 
-                        uid: bitacora.dataValues.uid, 
+                        uid: bitacora.uid, 
                         correosParticipantes,
                         proyecto: nombreProyecto
                     }
                    
 
-                    await reporteBitacora(reporte)
+                    try {
+                        await reporteBitacora(reporte)
+                    } catch (error) {
+                        console.log('Error al enviar el reporte de bitácora:', error);
+                    }
                 
 
                 }
 
-                let result = [];
 
                 try {
-                    result = await uploadDynamicFiles(galeria, 'bitacoras');
+                    const result = await uploadDynamicFiles(galeria, 'bitacoras');
 
                     await Promise.all(
                         result.map(async item => {
