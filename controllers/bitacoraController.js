@@ -256,8 +256,6 @@ exports.createBitacora = async (req, res) => {
     form.keepExtensions = true
    
     form.parse(req, async (err, fields, files) => {
-
-
         if (err) {
             return res.status(500).json({
                 message: "Error al subir la bitacora",

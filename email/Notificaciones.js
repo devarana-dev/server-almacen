@@ -100,17 +100,27 @@ async function reporteBitacora ( reporte ){
     `
     const html = createHTML(body)
     
-    console.log({involucrados});
-    
     
     involucrados.push(autor)
     involucrados.forEach( async usuario => {
+
+        if(process.env.ENVIRONMENT !== 'development') {
+            console.log(`Enviando notificación a ${usuario.email}`);
+        }else{
+            console.log(`Entorno de desarrollo, no se enviará correo a ${usuario.email}`);
+        }
 
         process.env.ENVIRONMENT !== 'development' && mailSender(usuario.email, `Registro de ${tipoBitacora}`, html )
 
         if( correosParticipantes.length > 0 ){
             correosParticipantes.forEach( correo => {
                 process.env.ENVIRONMENT !== 'development' && mailSender(correo, `Registro de ${tipoBitacora}`, html )
+
+                if(process.env.ENVIRONMENT !== 'development') {
+                    console.log(`Enviando notificación a ${correo}`);
+                }else{
+                    console.log(`Entorno de desarrollo, no se enviará correo a ${correo}`);
+                }
             })
         }
     })
