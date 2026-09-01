@@ -250,12 +250,18 @@ exports.getBitacora = async (req, res) => {
 
 exports.createBitacora = async (req, res) => {
 
+    console.log('Test',req.body);
+    
+
 
     const form = new formidable.IncomingForm({ multiples: true, maxFileSize: 350 * 1024 * 1024, maxTotalFileSize: 350 * 1024 * 1024 })
     // form.uploadDir = './static/bitacoras'
     form.keepExtensions = true
    
     form.parse(req, async (err, fields, files) => {
+
+        console.log({fields, files});
+        
         if (err) {
             return res.status(500).json({
                 message: "Error al subir la bitacora",
