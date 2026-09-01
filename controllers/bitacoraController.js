@@ -250,9 +250,9 @@ exports.getBitacora = async (req, res) => {
 
 exports.createBitacora = async (req, res) => {
 
-    console.log('Test',req.body);
-    
-
+    console.log('CONTENT TYPE:', req.headers['content-type']);
+    console.log('CONTENT LENGTH:', req.headers['content-length']);
+    console.log('USER AGENT:', req.headers['user-agent']);
 
     const form = new formidable.IncomingForm({ multiples: true, maxFileSize: 350 * 1024 * 1024, maxTotalFileSize: 350 * 1024 * 1024 })
     // form.uploadDir = './static/bitacoras'
