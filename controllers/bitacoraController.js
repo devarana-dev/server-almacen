@@ -400,7 +400,7 @@ exports.createBitacora = async (req, res) => {
                 return res.status(200).json({ message: "Bitacora creada correctamente", bitacora })   
 
         } catch (error) {  
-            console.log(' Error al crear la bitacora: ', error);
+            console.log(' Error al crear la bitacora: ', error, req.body);
             return res.status(500).json({ message: "Error al crear la bitacora", error })
         }   
     })
