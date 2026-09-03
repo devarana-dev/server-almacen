@@ -276,7 +276,23 @@ exports.createBitacora = async (req, res) => {
         const correos = Object.keys(fields).filter( (key) => key.includes('correos') )
         const correosParticipantes = correos.map( (key) => fields[key] ).filter(Boolean)
 
-        const galeria = Object.values(files)
+        const galeria = Object.values(files).flatMap(file => Array.isArray(file) ? file : [file]).filter(Boolean);
+
+        console.dir(files, {
+            depth: 5
+        });
+
+        console.log(
+            'GALERIA:',
+            galeria.map(file => ({
+                filepath: file?.filepath,
+                path: file?.path,
+                originalFilename: file?.originalFilename,
+                name: file?.name,
+                mimetype: file?.mimetype,
+                type: file?.type
+            }))
+        );
         try {
 
             const tipoBitacoraId = Array.isArray(fields.tipoBitacoraId) ? fields.tipoBitacoraId[0] : fields.tipoBitacoraId ?? 1;
