@@ -1,65 +1,100 @@
-const mailer = require('nodemailer');
-const Bottleneck = require("bottleneck");
+const { Resend } = require('resend');
+const Bottleneck = require('bottleneck');
+const fs = require('fs').promises;
+const path = require('path');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const limiter = new Bottleneck({
     maxConcurrent: 1,
     minTime: 2000
-  });
-
-const transporter = mailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    // service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD
-    }
 });
 
-const mailSender = (to, subject, html, extraAttachments = [], bcc) => {
+const from = `Devarana <${process.env.EMAIL_FROM ?? 'noreply@devarana.mx'}>`;
 
-    const attachments = [
-        {
-            filename: 'LogoDevarana.png',
-            path: './static/img/LogoDevarana.png',
-            cid: 'logo'
-        },
-    ]
+const prepareAttachment = async (attachment) => {
 
-    const mailOptions = {
-        from: `Devarana <${process.env.EMAIL_USERNAME}>`,
-        to: ` <${to}>`,
-        bcc: `<abrahamalvarado@devarana.mx, ${bcc}>`,
-        subject: 'No Reply', subject,
-        html: html,
-        attachments: [...attachments, ...extraAttachments]
-    };
+    // Si ya viene contenido directamente
+    if (attachment.content) {
+        return {
+            filename: attachment.filename,
+            content: attachment.content,
+            ...(attachment.cid && { contentId: attachment.cid })
+        };
+    }
+
+    // Compatibilidad con tus attachments actuales de Nodemailer
+    if (attachment.path) {
+
+        const filePath = path.resolve(process.cwd(), attachment.path);
+        const content = await fs.readFile(filePath);
+
+        return {
+            filename: attachment.filename || path.basename(filePath),
+            content,
+            ...(attachment.cid && { contentId: attachment.cid })
+        };
+    }
+
+    return attachment;
+};
 
 
-    limiter.schedule(() => {
-        transporter.verify(function (error, success) {
+const mailSender = (
+    to,
+    subject,
+    html,
+    extraAttachments = [],
+    bcc
+) => {
+
+    return limiter.schedule(async () => {
+
+        try {
+
+            const attachments = [
+                {
+                    filename: 'LogoDevarana.png',
+                    path: './static/img/LogoDevarana.png',
+                    cid: 'logo'
+                },
+                ...extraAttachments
+            ];
+
+            const preparedAttachments = await Promise.all(
+                attachments.map(prepareAttachment)
+            );
+
+            const bccRecipients = [
+                'abrahamalvarado@devarana.mx',
+                ...(bcc ? [bcc] : [])
+            ];
+
+            const { data, error } = await resend.emails.send({
+                from,
+                to: [to],
+                bcc: bccRecipients,
+                subject,
+                html,
+                attachments: preparedAttachments
+            });
+
             if (error) {
-                console.log(error);
-            } else {
-                transporter.sendMail(mailOptions, function (error, info) {
-                    if (error) {
-                        console.log(error);
-                    } else {
-                        console.log('Email sent: ' + info.response);
-                    }
-                });
+                console.error('Error sending email:', error);
+                return;
             }
-        });
+
+            console.log('Email sent:', data.id);
+
+            return data;
+
+        } catch (error) {
+            console.error('Error sending email:', error);
+        }
+
     });
-}
+
+};
+
 
 module.exports = mailSender;
-
-transporter.verify(function (error, success) {
-    if (error) {
-        console.log(error);
-    } else {
-        console.log('Server is ready to take our messages');
-    }
-});
-

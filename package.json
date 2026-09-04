@@ -44,6 +44,7 @@
     "pdf-merger-js": "^5.1.2",
     "puppeteer": "^24.22.3",
     "puppeteer-core": "^24.22.3",
+    "resend": "^6.26.0",
     "sequelize": "^6.21.0",
     "slugify": "^1.6.5",
     "socket.io": "^4.5.1",
