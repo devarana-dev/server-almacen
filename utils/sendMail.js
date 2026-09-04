@@ -6,8 +6,17 @@ const limiter = new Bottleneck({
     minTime: 2000
   });
 
-exports.mailSender = (to, subject, html, extraAttachments = [], bcc) => {
+const transporter = mailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    // service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD
+    }
+});
 
+const mailSender = (to, subject, html, extraAttachments = [], bcc) => {
 
     const attachments = [
         {
@@ -17,20 +26,10 @@ exports.mailSender = (to, subject, html, extraAttachments = [], bcc) => {
         },
     ]
 
-    const transporter = mailer.createTransport({
-        host: process.env.EMAIL_HOST,
-        port: process.env.EMAIL_PORT,
-        // service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USERNAME,
-            pass: process.env.EMAIL_PASSWORD
-        }
-    });
-
     const mailOptions = {
         from: `Devarana <${process.env.EMAIL_USERNAME}>`,
         to: ` <${to}>`,
-        bcc: `<abrahamalvarado+sgo@devarana.mx, ${bcc}>`,
+        bcc: `<abrahamalvarado@devarana.mx, ${bcc}>`,
         subject: 'No Reply', subject,
         html: html,
         attachments: [...attachments, ...extraAttachments]
@@ -53,3 +52,14 @@ exports.mailSender = (to, subject, html, extraAttachments = [], bcc) => {
         });
     });
 }
+
+module.exports = mailSender;
+
+transporter.verify(function (error, success) {
+    if (error) {
+        console.log(error);
+    } else {
+        console.log('Server is ready to take our messages');
+    }
+});
+

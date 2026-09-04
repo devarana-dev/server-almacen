@@ -249,18 +249,11 @@ exports.getBitacora = async (req, res) => {
 }
 
 exports.createBitacora = async (req, res) => {
-
-    console.log('CONTENT TYPE:', req.headers['content-type']);
-    console.log('CONTENT LENGTH:', req.headers['content-length']);
-    console.log('USER AGENT:', req.headers['user-agent']);
-
     const form = new formidable.IncomingForm({ multiples: true, maxFileSize: 350 * 1024 * 1024, maxTotalFileSize: 350 * 1024 * 1024 })
     // form.uploadDir = './static/bitacoras'
     form.keepExtensions = true
    
     form.parse(req, async (err, fields, files) => {
-
-        console.log({fields, files});
         
         if (err) {
             return res.status(500).json({
@@ -278,21 +271,6 @@ exports.createBitacora = async (req, res) => {
 
         const galeria = Object.values(files).flatMap(file => Array.isArray(file) ? file : [file]).filter(Boolean);
 
-        console.dir(files, {
-            depth: 5
-        });
-
-        console.log(
-            'GALERIA:',
-            galeria.map(file => ({
-                filepath: file?.filepath,
-                path: file?.path,
-                originalFilename: file?.originalFilename,
-                name: file?.name,
-                mimetype: file?.mimetype,
-                type: file?.type
-            }))
-        );
         try {
 
             const tipoBitacoraId = Array.isArray(fields.tipoBitacoraId) ? fields.tipoBitacoraId[0] : fields.tipoBitacoraId ?? 1;
