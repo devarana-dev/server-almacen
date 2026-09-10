@@ -96,5 +96,6 @@ const mailSender = (
 
 };
 
-
-module.exports = mailSender;
+module.exports = {
+    mailSender
+};
